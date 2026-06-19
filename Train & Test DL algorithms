@@ -1,0 +1,184 @@
+train_start = time.time()
+
+        epoch = 0
+        threshold_reached = False
+
+        while epoch < MAX_EPOCHS:
+
+            history = model.fit(
+                X_train,
+                y_train,
+                validation_data=(
+                    X_val,
+                    y_val
+                ),
+                epochs=1,
+                batch_size=BATCH_SIZE,
+                verbose=0
+            )
+
+            epoch += 1
+
+            val_pred = (
+                model.predict(
+                    X_val,
+                    verbose=0
+                ) > 0.5
+            ).astype(int)
+
+            acc = accuracy_score(
+                y_val,
+                val_pred
+            )
+
+            rec = recall_score(
+                y_val,
+                val_pred
+            )
+
+            f1 = f1_score(
+                y_val,
+                val_pred
+            )
+
+            if (
+                acc >= THRESHOLD_ACC and
+                rec >= THRESHOLD_REC and
+                f1 >= THRESHOLD_F1
+            ):
+
+                threshold_reached = True
+                break
+
+        train_time = (
+            time.time() - train_start
+        )
+
+        cpu_mem_after_train = (
+            process.memory_info().rss/(1024**2)
+        )
+
+        # ====================================================
+        # TEST
+        # ====================================================
+
+        test_start = time.time()
+
+        test_pred = (
+            model.predict(
+                X_test,
+                verbose=0
+            ) > 0.5
+        ).astype(int)
+
+        test_time = (
+            time.time() - test_start
+        )
+
+        cpu_mem_after_test = (
+            process.memory_info().rss/(1024**2)
+        )
+
+        cpu_time_after = (
+            time.process_time()
+        )
+
+        train_pred = (
+            model.predict(
+                X_train,
+                verbose=0
+            ) > 0.5
+        ).astype(int)
+
+        row = {
+
+            "Attack": ATTACK_KEY,
+            "Model": model_name,
+
+            "Accuracy":
+                accuracy_score(
+                    y_test,
+                    test_pred
+                ),
+
+            "Recall":
+                recall_score(
+                    y_test,
+                    test_pred
+                ),
+
+            "Precision":
+                precision_score(
+                    y_test,
+                    test_pred
+                ),
+
+            "F1":
+                f1_score(
+                    y_test,
+                    test_pred
+                ),
+
+            "Train_Accuracy":
+                accuracy_score(
+                    y_train,
+                    train_pred
+                ),
+
+            "Train_Loss":
+                history.history[
+                    "loss"
+                ][-1],
+
+            "Test_Loss":
+                model.evaluate(
+                    X_test,
+                    y_test,
+                    verbose=0
+                )[0],
+
+            "Train_Time":
+                train_time,
+
+            "Test_Time":
+                test_time,
+
+            "CPU_Memory_Train_MB":
+                cpu_mem_after_train
+                - cpu_mem_before,
+
+            "CPU_Memory_Test_MB":
+                cpu_mem_after_test
+                - cpu_mem_after_train,
+
+            "CPU_Time":
+                cpu_time_after
+                - cpu_time_before,
+
+            "Epochs":
+                epoch,
+
+            "Threshold_Reached":
+                threshold_reached
+        }
+
+        results_df = pd.concat(
+            [
+                results_df,
+                pd.DataFrame([row])
+            ],
+            ignore_index=True
+        )
+
+        results_df.to_csv(
+            SAVE_PATH,
+            index=False
+        )
+
+        print(
+            model_name,
+            "saved immediately"
+        )
+
+        tf.keras.backend.clear_session()
+        gc.collect()
